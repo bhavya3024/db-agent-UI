@@ -52,9 +52,10 @@ export async function POST(request: NextRequest) {
 
     // Get the final state to extract the complete response
     const state = await client.threads.getState(thread.thread_id);
-    const stateMessages = state.values?.messages || [];
+    const values = state.values as { messages?: Array<{ type?: string; content?: string }> } | null;
+    const stateMessages = values?.messages || [];
     const lastAiMessage = stateMessages
-      .filter((m: { type?: string }) => m.type === "ai")
+      .filter((m) => m.type === "ai")
       .pop();
 
     return NextResponse.json({
