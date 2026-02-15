@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface Message {
   id: string;
@@ -202,7 +206,67 @@ export default function Chat() {
                       : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{message.content || "..."}</p>
+                  {message.role === "user" ? (
+                    <p className="whitespace-pre-wrap">{message.content || "..."}</p>
+                  ) : (
+                    <div className="prose prose-sm dark:prose-invert max-w-none prose-pre:p-0 prose-pre:m-0 prose-pre:bg-transparent">
+                      {message.content ? (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            code({ className, children, ...props }) {
+                              const match = /language-(\w+)/.exec(className || "");
+                              const isInline = !match && !className;
+                              return isInline ? (
+                                <code
+                                  className="rounded bg-zinc-200 px-1.5 py-0.5 text-sm dark:bg-zinc-700"
+                                  {...props}
+                                >
+                                  {children}
+                                </code>
+                              ) : (
+                                <SyntaxHighlighter
+                                  style={oneDark}
+                                  language={match ? match[1] : "text"}
+                                  PreTag="div"
+                                  className="rounded-lg !my-2"
+                                >
+                                  {String(children).replace(/\n$/, "")}
+                                </SyntaxHighlighter>
+                              );
+                            },
+                            table({ children }) {
+                              return (
+                                <div className="overflow-x-auto my-2">
+                                  <table className="min-w-full border-collapse border border-zinc-300 dark:border-zinc-600">
+                                    {children}
+                                  </table>
+                                </div>
+                              );
+                            },
+                            th({ children }) {
+                              return (
+                                <th className="border border-zinc-300 bg-zinc-200 px-3 py-2 text-left dark:border-zinc-600 dark:bg-zinc-700">
+                                  {children}
+                                </th>
+                              );
+                            },
+                            td({ children }) {
+                              return (
+                                <td className="border border-zinc-300 px-3 py-2 dark:border-zinc-600">
+                                  {children}
+                                </td>
+                              );
+                            },
+                          }}
+                        >
+                          {message.content}
+                        </ReactMarkdown>
+                      ) : (
+                        <span className="animate-pulse">...</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
