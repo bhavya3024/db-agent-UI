@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import UserMenu from "./UserMenu";
 
 interface Message {
   id: string;
@@ -13,7 +14,15 @@ interface Message {
   timestamp: Date;
 }
 
-export default function Chat() {
+interface ChatProps {
+  user?: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  };
+}
+
+export default function Chat({ user }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -141,12 +150,15 @@ export default function Chat() {
             {threadId ? `Thread: ${threadId.slice(0, 8)}...` : "New conversation"}
           </p>
         </div>
-        <button
-          onClick={startNewConversation}
-          className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-        >
-          New Chat
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={startNewConversation}
+            className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          >
+            New Chat
+          </button>
+          {user && <UserMenu user={user} />}
+        </div>
       </div>
 
       {/* Messages */}

@@ -1,7 +1,10 @@
 import Chat from "@/components/Chat";
 import ConnectionStatus from "@/components/ConnectionStatus";
+import { auth } from "@/auth";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
+
   return (
     <div className="flex h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
       {/* Top bar */}
@@ -31,7 +34,7 @@ export default function Home() {
 
       {/* Main chat area */}
       <main className="flex-1 overflow-hidden">
-        <Chat />
+        <Chat user={session?.user} />
       </main>
     </div>
   );
