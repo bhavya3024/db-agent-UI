@@ -1,14 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLangGraphClient, getGraphName } from "@/lib/langgraph";
+import { auth } from "@/auth";
+import dbConnect from "@/lib/mongoose";
+import DatabaseConnection from "@/models/DatabaseConnection";
+import mongoose from "mongoose";
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, threadId } = await request.json();
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { message, threadId, connectionId } = await request.json();
 
     if (!message) {
       return NextResponse.json(
         { error: "Message is required" },
         { status: 400 }
+      );
+    }
+
+    if (!connectionId) {
+      return NextResponse.json(
+        { error: "Connection ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate connectionId format
+    if (!mongoose.Types.ObjectId.isValid(connectionId)) {
+      return NextResponse.json(
+        { error: "Invalid connection ID format" },
+        { status: 400 }
+      );
+    }
+
+    // Verify the connection exists and belongs to the user
+    await dbConnect();
+    const connection = await DatabaseConnection.findOne({
+      _id: connectionId,
+      userId: session.user.id,
+    });
+
+    if (!connection) {
+      return NextResponse.json(
+        { error: "Database connection not found" },
+        { status: 404 }
       );
     }
 
@@ -23,9 +61,12 @@ export async function POST(request: NextRequest) {
       thread = await client.threads.create();
     }
 
-    // Create input with the message
+    // Create input with ONLY connection_id and user_id (secure - no credentials)
+    // LangGraph agent will fetch connection details from its own connection store
     const input = {
       messages: [{ role: "human", content: message }],
+      connection_id: connectionId,
+      user_id: session.user.id,
     };
 
     // Create a streaming response

@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import UserMenu from "./UserMenu";
 
 interface Message {
   id: string;
@@ -16,19 +15,72 @@ interface Message {
 
 interface ChatProps {
   user?: {
+    id?: string;
     name?: string | null;
     email?: string | null;
     image?: string | null;
   };
+  connectionId: string;
+  threadId: string | null;
+  onThreadCreated?: (threadId: string) => void;
 }
 
-export default function Chat({ user }: ChatProps) {
+export default function Chat({ connectionId, threadId: initialThreadId, onThreadCreated }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(initialThreadId);
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const threadSavedRef = useRef(false); // Use ref for synchronous check
+  const currentConnectionRef = useRef(connectionId);
+
+  // Load messages for an existing thread
+  const loadThreadMessages = useCallback(async (threadIdToLoad: string) => {
+    setIsLoadingHistory(true);
+    try {
+      const response = await fetch(`/api/threads/${threadIdToLoad}/messages`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.messages && data.messages.length > 0) {
+          const loadedMessages: Message[] = data.messages.map((msg: { role: string; content: string }, index: number) => ({
+            id: `loaded-${index}`,
+            role: msg.role === "human" ? "user" : "assistant",
+            content: msg.content,
+            timestamp: new Date(),
+          }));
+          setMessages(loadedMessages);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading thread messages:", error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, []);
+
+  // Reset only when CONNECTION changes (not when threadId is set for the first time)
+  useEffect(() => {
+    // Only reset if connection actually changed
+    if (currentConnectionRef.current !== connectionId) {
+      setMessages([]);
+      setThreadId(initialThreadId);
+      setError(null);
+      threadSavedRef.current = !!initialThreadId;
+      currentConnectionRef.current = connectionId;
+      // Load messages if we have an initial thread
+      if (initialThreadId) {
+        loadThreadMessages(initialThreadId);
+      }
+    } else if (initialThreadId && initialThreadId !== threadId) {
+      // Different thread selected (from sidebar), load its messages
+      setMessages([]);
+      setThreadId(initialThreadId);
+      threadSavedRef.current = true; // Existing thread, already saved
+      loadThreadMessages(initialThreadId);
+    }
+  }, [connectionId, initialThreadId, loadThreadMessages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,6 +89,47 @@ export default function Chat({ user }: ChatProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Save thread to database (only once per thread)
+  const saveThread = useCallback(async (newThreadId: string, firstMessage: string) => {
+    // Synchronous check with ref - prevents duplicate calls
+    if (threadSavedRef.current) return;
+    threadSavedRef.current = true;
+    
+    try {
+      const response = await fetch(`/api/connections/${connectionId}/threads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          threadId: newThreadId,
+          title: firstMessage.slice(0, 50) + (firstMessage.length > 50 ? "..." : ""),
+        }),
+      });
+      
+      if (response.ok) {
+        onThreadCreated?.(newThreadId);
+      }
+    } catch (error) {
+      console.error("Error saving thread:", error);
+      threadSavedRef.current = false; // Allow retry on error
+    }
+  }, [connectionId, onThreadCreated]);
+
+  // Update thread with last message
+  const updateThread = useCallback(async (currentThreadId: string, lastMessage: string) => {
+    try {
+      await fetch(`/api/threads/${currentThreadId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lastMessage: lastMessage.slice(0, 100),
+          messageCount: messages.length + 2,
+        }),
+      });
+    } catch (error) {
+      console.error("Error updating thread:", error);
+    }
+  }, [messages.length]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,11 +166,13 @@ export default function Chat({ user }: ChatProps) {
         body: JSON.stringify({
           message: userMessage.content,
           threadId,
+          connectionId,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       const reader = response.body?.getReader();
@@ -85,6 +180,7 @@ export default function Chat({ user }: ChatProps) {
 
       const decoder = new TextDecoder();
       let accumulatedContent = "";
+      let threadIdHandled = false; // Local flag for this stream session
 
       while (true) {
         const { done, value } = await reader.read();
@@ -113,14 +209,23 @@ export default function Chat({ user }: ChatProps) {
                   )
                 );
               }
-              if (parsed.threadId && !threadId) {
-                setThreadId(parsed.threadId);
+              // Handle threadId only once per stream
+              if (parsed.threadId && !threadIdHandled) {
+                threadIdHandled = true;
+                const newThreadId = parsed.threadId;
+                setThreadId(newThreadId);
+                saveThread(newThreadId, userMessage.content);
               }
             } catch {
               // Ignore parse errors for incomplete chunks
             }
           }
         }
+      }
+
+      // Update thread with last message
+      if (threadId && accumulatedContent) {
+        updateThread(threadId, accumulatedContent);
       }
     } catch (err) {
       console.error("Error sending message:", err);
@@ -150,20 +255,39 @@ export default function Chat({ user }: ChatProps) {
             {threadId ? `Thread: ${threadId.slice(0, 8)}...` : "New conversation"}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={startNewConversation}
-            className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-          >
-            New Chat
-          </button>
-          {user && <UserMenu user={user} />}
-        </div>
+        <button
+          onClick={startNewConversation}
+          className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+        >
+          New Chat
+        </button>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        {messages.length === 0 ? (
+        {isLoadingHistory ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="text-center">
+              <svg className="mx-auto h-8 w-8 animate-spin text-blue-500" viewBox="0 0 24 24">
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+              <p className="mt-2 text-sm text-zinc-500">Loading conversation...</p>
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="mb-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-4">
               <svg
