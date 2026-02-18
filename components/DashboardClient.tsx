@@ -19,6 +19,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleSelectConnection = (connectionId: string) => {
     setSelectedConnectionId(connectionId);
@@ -36,6 +37,15 @@ export default function DashboardClient({ user }: DashboardClientProps) {
 
   const handleThreadCreated = (threadId: string) => {
     setSelectedThreadId(threadId);
+    // Trigger sidebar to refresh threads list
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
+  const handleThreadDeleted = (threadId: string, connectionId: string) => {
+    // Clear selection if the deleted thread was selected
+    if (selectedThreadId === threadId) {
+      setSelectedThreadId(null);
+    }
   };
 
   return (
@@ -93,6 +103,8 @@ export default function DashboardClient({ user }: DashboardClientProps) {
             onSelectConnection={handleSelectConnection}
             onSelectThread={handleSelectThread}
             onNewChat={handleNewChat}
+            onThreadDeleted={handleThreadDeleted}
+            refreshTrigger={refreshTrigger}
           />
         </aside>
 
