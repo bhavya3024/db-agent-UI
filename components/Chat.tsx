@@ -35,6 +35,7 @@ export default function Chat({ connectionId, threadId: initialThreadId, onThread
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const threadSavedRef = useRef(false); // Use ref for synchronous check
   const currentConnectionRef = useRef(connectionId);
+  const initialLoadDoneRef = useRef(false);
 
   // Load messages for an existing thread
   const loadThreadMessages = useCallback(async (threadIdToLoad: string) => {
@@ -44,12 +45,14 @@ export default function Chat({ connectionId, threadId: initialThreadId, onThread
       if (response.ok) {
         const data = await response.json();
         if (data.messages && data.messages.length > 0) {
-          const loadedMessages: Message[] = data.messages.map((msg: { role: string; content: string }, index: number) => ({
-            id: `loaded-${index}`,
-            role: msg.role === "human" ? "user" : "assistant",
-            content: msg.content,
-            timestamp: new Date(),
-          }));
+          const loadedMessages: Message[] = data.messages
+            .filter((msg: { role: string; content: string }) => msg.content && msg.content.trim() !== "")
+            .map((msg: { role: string; content: string }, index: number) => ({
+              id: `loaded-${index}`,
+              role: msg.role === "human" ? "user" : "assistant",
+              content: msg.content,
+              timestamp: new Date(),
+            }));
           setMessages(loadedMessages);
         }
       }
@@ -60,6 +63,15 @@ export default function Chat({ connectionId, threadId: initialThreadId, onThread
     }
   }, []);
 
+  // Load messages on initial mount if we have a threadId
+  useEffect(() => {
+    if (!initialLoadDoneRef.current && initialThreadId) {
+      initialLoadDoneRef.current = true;
+      threadSavedRef.current = true; // Existing thread, already saved
+      loadThreadMessages(initialThreadId);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Reset only when CONNECTION changes (not when threadId is set for the first time)
   useEffect(() => {
     // Only reset if connection actually changed
@@ -69,6 +81,7 @@ export default function Chat({ connectionId, threadId: initialThreadId, onThread
       setError(null);
       threadSavedRef.current = !!initialThreadId;
       currentConnectionRef.current = connectionId;
+      initialLoadDoneRef.current = !!initialThreadId;
       // Load messages if we have an initial thread
       if (initialThreadId) {
         loadThreadMessages(initialThreadId);
