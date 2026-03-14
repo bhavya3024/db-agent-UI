@@ -30,15 +30,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Extract messages from state
-    const messages = Array.isArray(state.values) 
-      ? state.values.flatMap((val: any) => val.messages || [])
-      : (state.values as any).messages || [];
+    const stateValues = state.values as Record<string, unknown>[] | Record<string, unknown>;
+    const messages = Array.isArray(stateValues)
+      ? stateValues.flatMap((val) => (val.messages as unknown[]) || [])
+      : ((stateValues as Record<string, unknown>).messages as unknown[]) || [];
     
     // Format messages for the frontend
-    const formattedMessages = messages.map((msg: { type: string; content: string }) => ({
-      role: msg.type === "human" ? "human" : "assistant",
-      content: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
-    }));
+    const formattedMessages = messages.map((msg) => {
+      const { type, content } = msg as { type: string; content: unknown };
+      return {
+        role: type === "human" ? "human" : "assistant",
+        content: typeof content === "string" ? content : JSON.stringify(content),
+      };
+    });
 
     return NextResponse.json({ messages: formattedMessages });
   } catch (error) {

@@ -80,7 +80,7 @@ export default function Chat({ connectionId, threadId: initialThreadId, onThread
       threadSavedRef.current = true; // Existing thread, already saved
       loadThreadMessages(initialThreadId);
     }
-  }, [connectionId, initialThreadId, loadThreadMessages]);
+  }, [connectionId, initialThreadId, threadId, loadThreadMessages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -235,12 +235,6 @@ export default function Chat({ connectionId, threadId: initialThreadId, onThread
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const startNewConversation = () => {
-    setMessages([]);
-    setThreadId(null);
-    setError(null);
   };
 
   return (

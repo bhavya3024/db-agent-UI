@@ -13,11 +13,13 @@ interface DashboardClientProps {
     email?: string | null;
     image?: string | null;
   };
+  initialThreadId?: string | null;
+  initialConnectionId?: string | null;
 }
 
-export default function DashboardClient({ user }: DashboardClientProps) {
-  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+export default function DashboardClient({ user, initialThreadId, initialConnectionId }: DashboardClientProps) {
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(initialConnectionId ?? null);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(initialThreadId ?? null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -41,7 +43,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  const handleThreadDeleted = (threadId: string, connectionId: string) => {
+  const handleThreadDeleted = (threadId: string, _connectionId: string) => {
     // Clear selection if the deleted thread was selected
     if (selectedThreadId === threadId) {
       setSelectedThreadId(null);

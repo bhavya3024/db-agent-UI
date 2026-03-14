@@ -1,7 +1,8 @@
 type OnePasswordSdkModule = typeof import("@1password/sdk");
+type OnePasswordClient = Awaited<ReturnType<OnePasswordSdkModule["createClient"]>>;
 
 let onePasswordSdkPromise: Promise<OnePasswordSdkModule> | null = null;
-let onePasswordClientPromise: Promise<unknown> | null = null;
+let onePasswordClientPromise: Promise<OnePasswordClient> | null = null;
 
 interface ConnectionSecretInput {
   connectionId: string;
@@ -80,7 +81,7 @@ export async function createConnectionSecrets(input: ConnectionSecretInput): Pro
   const client = await getOnePasswordClient();
   const { vaultId } = getOnePasswordConfig();
 
-  const fields = [
+  const fields: Array<{ id: string; title: string; fieldType: unknown; value: string; sectionId?: string }> = [
     {
       id: "db_host",
       title: "host",
@@ -184,7 +185,7 @@ export async function updateConnectionSecrets(
   const setFieldValue = (
     id: string,
     title: string,
-    fieldType: sdk.ItemFieldType,
+    fieldType: unknown,
     value?: string,
     sectionId?: string
   ) => {
