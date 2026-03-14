@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Chat from "./Chat";
 import ConnectionStatus from "./ConnectionStatus";
@@ -18,6 +19,7 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ user, initialThreadId, initialConnectionId }: DashboardClientProps) {
+  const router = useRouter();
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(initialConnectionId ?? null);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(initialThreadId ?? null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -29,6 +31,7 @@ export default function DashboardClient({ user, initialThreadId, initialConnecti
 
   const handleSelectThread = (threadId: string, connectionId: string) => {
     setSelectedThreadId(threadId);
+    router.push(`/chat/${threadId}`);
     setSelectedConnectionId(connectionId);
   };
 
@@ -38,6 +41,7 @@ export default function DashboardClient({ user, initialThreadId, initialConnecti
   };
 
   const handleThreadCreated = (threadId: string) => {
+    router.push(`/chat/${threadId}`);
     setSelectedThreadId(threadId);
     // Trigger sidebar to refresh threads list
     setRefreshTrigger((prev) => prev + 1);

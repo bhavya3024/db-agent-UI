@@ -41,17 +41,22 @@ export default function Chat({ connectionId, threadId: initialThreadId, onThread
     setIsLoadingHistory(true);
     try {
       const response = await fetch(`/api/threads/${threadIdToLoad}/messages`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.messages && data.messages.length > 0) {
-          const loadedMessages: Message[] = data.messages.map((msg: { role: string; content: string }, index: number) => ({
-            id: `loaded-${index}`,
-            role: msg.role === "human" ? "user" : "assistant",
-            content: msg.content,
-            timestamp: new Date(),
-          }));
-          setMessages(loadedMessages);
-        }
+      if (!response.ok) {
+        console.error("Failed to load messages:", response.status, response.statusText);
+        setIsLoadingHistory(false);
+        return;
+      }
+      const data = await response.json();
+      console.log("Loaded message data:", data);
+      if (data.messages && data.messages.length > 0) {
+        const loadedMessages: Message[] = data.messages.map((msg: { role: string; content: string }, index: number) => ({
+          id: `loaded-${index}`,
+          role: msg.role === "human" ? "user" : "assistant",
+          content: msg.content,
+          timestamp: new Date(),
+        }));
+        console.log("Setting messages:", loadedMessages);
+        setMessages(loadedMessages);
       }
     } catch (error) {
       console.error("Error loading thread messages:", error);
@@ -60,27 +65,30 @@ export default function Chat({ connectionId, threadId: initialThreadId, onThread
     }
   }, []);
 
-  // Reset only when CONNECTION changes (not when threadId is set for the first time)
+  // Handle initial thread load (when threadId is provided)
   useEffect(() => {
-    // Only reset if connection actually changed
-    if (currentConnectionRef.current !== connectionId) {
+    console.log("Initial load effect - initialThreadId:", initialThreadId);
+    if (initialThreadId) {
+      console.log("Loading messages for initial thread:", initialThreadId);
       setMessages([]);
       setThreadId(initialThreadId);
-      setError(null);
-      threadSavedRef.current = !!initialThreadId;
-      currentConnectionRef.current = connectionId;
-      // Load messages if we have an initial thread
-      if (initialThreadId) {
-        loadThreadMessages(initialThreadId);
-      }
-    } else if (initialThreadId && initialThreadId !== threadId) {
-      // Different thread selected (from sidebar), load its messages
-      setMessages([]);
-      setThreadId(initialThreadId);
-      threadSavedRef.current = true; // Existing thread, already saved
+      threadSavedRef.current = true;
       loadThreadMessages(initialThreadId);
     }
-  }, [connectionId, initialThreadId, threadId, loadThreadMessages]);
+  }, [initialThreadId, loadThreadMessages]);
+
+  // Handle connection changes
+  useEffect(() => {
+    console.log("Connection change effect - old:", currentConnectionRef.current, "new:", connectionId);
+    if (currentConnectionRef.current !== connectionId) {
+      console.log("Connection changed, resetting...");
+      setMessages([]);
+      setThreadId(null);
+      setError(null);
+      threadSavedRef.current = false;
+      currentConnectionRef.current = connectionId;
+    }
+  }, [connectionId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

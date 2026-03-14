@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ["@1password/sdk", "@1password/sdk-core"],
   turbopack: {
     resolveAlias: {
       "@1password/sdk": "@1password/sdk",
