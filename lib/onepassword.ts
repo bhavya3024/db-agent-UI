@@ -137,7 +137,7 @@ export async function createConnectionSecrets(input: ConnectionSecretInput): Pro
     title: `DB Connection: ${input.connectionName}`,
     category: sdk.ItemCategory.Login,
     vaultId,
-    fields,
+    fields: fields as unknown as Parameters<typeof client.items.create>[0]['fields'],
     sections: [{ id: DATABASE_SECTION_ID, title: "Database Details" }],
     tags: [
       "db-agent-ui",
@@ -200,7 +200,7 @@ export async function updateConnectionSecrets(
       return;
     }
 
-    fields.push({ id, title, fieldType, value, sectionId });
+    fields.push({ id, title, fieldType: fieldType as unknown, value, sectionId } as Parameters<typeof client.items.put>[0]['fields'][number]);
   };
 
   setFieldValue("db_host", "host", sdk.ItemFieldType.Text, input.host, DATABASE_SECTION_ID);
@@ -219,7 +219,7 @@ export async function updateConnectionSecrets(
   const updatedItem = await client.items.put({
     ...item,
     title: `DB Connection: ${input.connectionName}`,
-    fields,
+    fields: fields as unknown as Parameters<typeof client.items.put>[0]['fields'],
     sections: item.sections.some((section) => section.id === DATABASE_SECTION_ID)
       ? item.sections
       : [...item.sections, { id: DATABASE_SECTION_ID, title: "Database Details" }],
