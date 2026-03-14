@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import dbConnect from "@/lib/mongoose";
+import { deleteConnectionSecrets, updateConnectionSecrets } from "@/lib/onepassword";
 import DatabaseConnection from "@/models/DatabaseConnection";
 import Thread from "@/models/Thread";
 import mongoose from "mongoose";
@@ -27,7 +28,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const connection = await DatabaseConnection.findOne({
       _id: id,
       userId: session.user.id,
-    }).select("-password -connectionString");
+    }).select(
+      "-passwordSecretRef -connectionStringSecretRef -credentialVaultId -credentialItemId"
+    );
 
     if (!connection) {
       return NextResponse.json({ error: "Connection not found" }, { status: 404 });
@@ -55,7 +58,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { name, type, host, port, database, username, password, isActive } = body;
+    const { name, type, host, port, database, username, password, connectionString, isActive } = body;
 
     await dbConnect();
 
@@ -93,12 +96,47 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (port !== undefined) updateData.port = port;
     if (database !== undefined) updateData.database = database;
     if (username !== undefined) updateData.username = username;
-    if (password !== undefined) updateData.password = password; // TODO: Encrypt
     if (isActive !== undefined) updateData.isActive = isActive;
+
+    const hasNewSecretValues =
+      (typeof password === "string" && password.trim() !== "") ||
+      (typeof connectionString === "string" && connectionString.trim() !== "");
+
+    if (hasNewSecretValues) {
+      const updatedSecrets = await updateConnectionSecrets(
+        {
+          credentialVaultId: existing.credentialVaultId,
+          credentialItemId: existing.credentialItemId,
+          passwordSecretRef: existing.passwordSecretRef,
+          connectionStringSecretRef: existing.connectionStringSecretRef,
+        },
+        {
+          connectionId: existing._id.toString(),
+          userId: existing.userId,
+          connectionName: name ?? existing.name,
+          type: type ?? existing.type,
+          host: host ?? existing.host,
+          port: port ?? existing.port,
+          database: database ?? existing.database,
+          username: username ?? existing.username,
+          password,
+          connectionString,
+        }
+      );
+
+      if (updatedSecrets) {
+        updateData.credentialVaultId = updatedSecrets.credentialVaultId;
+        updateData.credentialItemId = updatedSecrets.credentialItemId;
+        updateData.passwordSecretRef = updatedSecrets.passwordSecretRef;
+        updateData.connectionStringSecretRef = updatedSecrets.connectionStringSecretRef;
+      }
+    }
 
     const connection = await DatabaseConnection.findByIdAndUpdate(id, updateData, {
       new: true,
-    }).select("-password -connectionString");
+    }).select(
+      "-passwordSecretRef -connectionStringSecretRef -credentialVaultId -credentialItemId"
+    );
 
     return NextResponse.json(connection);
   } catch (error) {
@@ -135,6 +173,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Delete all threads associated with this connection
     await Thread.deleteMany({ connectionId: id });
+
+    // Delete secrets from 1Password before deleting the DB record
+    await deleteConnectionSecrets(connection.credentialVaultId, connection.credentialItemId);
 
     // Delete the connection
     await DatabaseConnection.findByIdAndDelete(id);

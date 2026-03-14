@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Chat from "./Chat";
 import ConnectionStatus from "./ConnectionStatus";
@@ -14,20 +13,11 @@ interface DashboardClientProps {
     email?: string | null;
     image?: string | null;
   };
-  initialThreadId?: string | null;
-  initialConnectionId?: string | null;
 }
 
-export default function DashboardClient({
-  user,
-  initialThreadId = null,
-  initialConnectionId = null,
-}: DashboardClientProps) {
-  const router = useRouter();
-  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(
-    initialConnectionId
-  );
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(initialThreadId);
+export default function DashboardClient({ user }: DashboardClientProps) {
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -38,21 +28,15 @@ export default function DashboardClient({
   const handleSelectThread = (threadId: string, connectionId: string) => {
     setSelectedThreadId(threadId);
     setSelectedConnectionId(connectionId);
-    // Update URL to reflect selected chat
-    router.push(`/chat/${threadId}`, { scroll: false });
   };
 
   const handleNewChat = (connectionId: string) => {
     setSelectedConnectionId(connectionId);
     setSelectedThreadId(null);
-    // Navigate to home when starting a new chat
-    router.push("/", { scroll: false });
   };
 
   const handleThreadCreated = (threadId: string) => {
     setSelectedThreadId(threadId);
-    // Update URL with new thread ID
-    router.push(`/chat/${threadId}`, { scroll: false });
     // Trigger sidebar to refresh threads list
     setRefreshTrigger((prev) => prev + 1);
   };
@@ -61,8 +45,6 @@ export default function DashboardClient({
     // Clear selection if the deleted thread was selected
     if (selectedThreadId === threadId) {
       setSelectedThreadId(null);
-      // Navigate to home when current thread is deleted
-      router.push("/", { scroll: false });
     }
   };
 

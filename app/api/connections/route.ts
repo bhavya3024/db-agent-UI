@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import dbConnect from "@/lib/mongoose";
+import mongoose from "mongoose";
+import { createConnectionSecrets } from "@/lib/onepassword";
 import DatabaseConnection, { DatabaseType } from "@/models/DatabaseConnection";
 
 // GET - List all connections for the current user
@@ -13,7 +15,9 @@ export async function GET() {
 
     await dbConnect();
     const connections = await DatabaseConnection.find({ userId: session.user.id })
-      .select("-password -connectionString") // Don't send sensitive data
+      .select(
+        "-passwordSecretRef -connectionStringSecretRef -credentialVaultId -credentialItemId"
+      )
       .sort({ updatedAt: -1 });
 
     return NextResponse.json(connections);
@@ -32,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, type, host, port, database, username, password } = body;
+    const { name, type, host, port, database, username, password, connectionString } = body;
 
     // Validate required fields
     if (!name || !type || !host || !port || !database) {
@@ -66,7 +70,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const connectionId = new mongoose.Types.ObjectId();
+    const storedSecrets = await createConnectionSecrets({
+      connectionId: connectionId.toString(),
+      userId: session.user.id,
+      connectionName: name,
+      type,
+      host,
+      port,
+      database,
+      username,
+      password,
+      connectionString,
+    });
+
     const connection = await DatabaseConnection.create({
+      _id: connectionId,
       userId: session.user.id,
       name,
       type,
@@ -74,13 +93,18 @@ export async function POST(request: NextRequest) {
       port,
       database,
       username,
-      password, // TODO: Encrypt in production
+      credentialVaultId: storedSecrets?.credentialVaultId,
+      credentialItemId: storedSecrets?.credentialItemId,
+      passwordSecretRef: storedSecrets?.passwordSecretRef,
+      connectionStringSecretRef: storedSecrets?.connectionStringSecretRef,
     });
 
     // Return without sensitive data
     const response = connection.toObject();
-    delete response.password;
-    delete response.connectionString;
+    delete response.passwordSecretRef;
+    delete response.connectionStringSecretRef;
+    delete response.credentialVaultId;
+    delete response.credentialItemId;
 
     return NextResponse.json(response, { status: 201 });
   } catch (error) {

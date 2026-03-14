@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@1password/sdk':
+        specifier: ^0.4.0
+        version: 0.4.0
       '@auth/mongodb-adapter':
         specifier: ^3.11.1
         version: 3.11.1(mongodb@7.1.0)
@@ -17,6 +20,9 @@ importers:
       '@tailwindcss/typography':
         specifier: ^0.5.19
         version: 0.5.19(tailwindcss@4.1.18)
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
       mongodb:
         specifier: ^7.1.0
         version: 7.1.0
@@ -77,6 +83,12 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@1password/sdk-core@0.4.0':
+    resolution: {integrity: sha512-vjeI1o4wiONY+t1naA4dtUp6HktdLH1D2S+tN1Lh4l41S9XIUHxrljov9B5u6G+VHr7f2MUoxmzXA9zT3aokQQ==}
+
+  '@1password/sdk@0.4.0':
+    resolution: {integrity: sha512-RIypujc9R/UeUaobjyClTYokqRFpcaIkHq+EO/X9XoHId98Vg+SbjwGV+yygRC4MyHwYNo1KP1iEbZcqJ4ZTdw==}
 
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
@@ -1196,6 +1208,10 @@ packages:
   doctrine@2.1.0:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
     engines: {node: '>=0.10.0'}
+
+  dotenv@17.3.1:
+    resolution: {integrity: sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==}
+    engines: {node: '>=12'}
 
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
@@ -2680,6 +2696,12 @@ packages:
 
 snapshots:
 
+  '@1password/sdk-core@0.4.0': {}
+
+  '@1password/sdk@0.4.0':
+    dependencies:
+      '@1password/sdk-core': 0.4.0
+
   '@alloc/quick-lru@5.2.0': {}
 
   '@auth/core@0.41.0':
@@ -3678,6 +3700,8 @@ snapshots:
   doctrine@2.1.0:
     dependencies:
       esutils: 2.0.3
+
+  dotenv@17.3.1: {}
 
   dunder-proto@1.0.1:
     dependencies:

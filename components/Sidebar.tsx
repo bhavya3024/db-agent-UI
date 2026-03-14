@@ -52,6 +52,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const [connections, setConnections] = useState<DatabaseConnection[]>([]);
   const [threads, setThreads] = useState<Record<string, Thread[]>>({});
+  const threadsRef = useRef<Record<string, Thread[]>>({});
   const [expandedConnections, setExpandedConnections] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -73,7 +74,7 @@ export default function Sidebar({
 
   const fetchThreads = useCallback(async (connectionId: string, forceRefresh = false) => {
     // Skip if already have data and not forcing refresh
-    if (!forceRefresh && threads[connectionId] !== undefined) {
+    if (!forceRefresh && threadsRef.current[connectionId] !== undefined) {
       return;
     }
     
@@ -81,15 +82,31 @@ export default function Sidebar({
       const response = await fetch(`/api/connections/${connectionId}/threads`);
       if (response.ok) {
         const data = await response.json();
-        setThreads((prev) => ({ ...prev, [connectionId]: data }));
+        setThreads((prev) => {
+          const next = { ...prev, [connectionId]: data };
+          threadsRef.current = next;
+          return next;
+        });
       } else {
         console.error("Error fetching threads:", response.status);
-        setThreads((prev) => ({ ...prev, [connectionId]: [] }));
+        setThreads((prev) => {
+          const next = { ...prev, [connectionId]: [] };
+          threadsRef.current = next;
+          return next;
+        });
       }
     } catch (error) {
       console.error("Error fetching threads:", error);
-      setThreads((prev) => ({ ...prev, [connectionId]: [] }));
+      setThreads((prev) => {
+        const next = { ...prev, [connectionId]: [] };
+        threadsRef.current = next;
+        return next;
+      });
     }
+  }, []);
+
+  useEffect(() => {
+    threadsRef.current = threads;
   }, [threads]);
 
   useEffect(() => {

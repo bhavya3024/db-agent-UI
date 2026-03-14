@@ -11,8 +11,10 @@ export interface IDatabaseConnection extends Document {
   port: number;
   database: string;
   username?: string;
-  password?: string; // Will be encrypted
-  connectionString?: string; // Alternative to individual fields
+  credentialVaultId?: string;
+  credentialItemId?: string;
+  passwordSecretRef?: string;
+  connectionStringSecretRef?: string;
   isActive: boolean;
   lastConnectedAt?: Date;
   createdAt: Date;
@@ -54,13 +56,17 @@ const DatabaseConnectionSchema = new Schema<IDatabaseConnection>(
       type: String,
       trim: true,
     },
-    password: {
+    credentialVaultId: {
       type: String,
-      // Note: In production, encrypt this field
     },
-    connectionString: {
+    credentialItemId: {
       type: String,
-      // Alternative to individual fields, also should be encrypted
+    },
+    passwordSecretRef: {
+      type: String,
+    },
+    connectionStringSecretRef: {
+      type: String,
     },
     isActive: {
       type: Boolean,

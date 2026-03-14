@@ -1,5 +1,36 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Environment Variables
+
+Create a `.env.local` file with the following values:
+
+```bash
+MONGODB_URI=<your-mongodb-uri>
+NEXTAUTH_SECRET=<your-nextauth-secret>
+NEXTAUTH_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=<your-google-client-id>
+GOOGLE_CLIENT_SECRET=<your-google-client-secret>
+LANGGRAPH_API_URL=http://localhost:8123
+LANGGRAPH_GRAPH_NAME=agent
+
+# 1Password SDK
+OP_SERVICE_ACCOUNT_TOKEN=<your-1password-service-account-token>
+OP_VAULT_ID=<vault-id-to-store-db-credentials>
+```
+
+Database passwords and connection strings are stored in 1Password using the official JavaScript SDK (`@1password/sdk`).
+
+## Migrate Existing Plaintext Credentials
+
+If you have existing connection records with plaintext `password` or `connectionString` fields, run:
+
+```bash
+pnpm migrate:secrets:dry
+pnpm migrate:secrets
+```
+
+The migration creates 1Password items, stores secret reference metadata on each connection document, and removes legacy plaintext credential fields.
+
 ## Getting Started
 
 First, run the development server:
